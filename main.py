@@ -300,10 +300,33 @@ def payoff_credit(data: datamodels.payoff_credit):
     else:
             return {'message': 'Insufficient Funds'}
         
+@app.get('/GetCustomerBalance/')
+def get_customer_balance(CustomerId: int):
     
+    conn = database.connectdb()
     
+    SQL_Query = pd.read_sql_query(""" SELECT CurrentBalance FROM accounttable WHERE CustomerId = '%s' """ % (CustomerId), conn)
+    CurrentBalances = pd.DataFrame(SQL_Query, columns = ['CurrentBalance'])
     
+    Total = CurrentBalances['CurrentBalance'].sum()
     
+    return {'Customer Total Balance': float(Total)}
+    
+@app.get('/GetExceededCredits/')
+def get_exceeded_credits():
+    
+    conn = database.connectdb()
+    
+    SQL_Query = pd.read_sql_query(""" SELECT credittable.TotalCreditAmount, credittable.RemainingAmountToBePaid, customertable.FirstName, customertable.LastName 
+                                  FROM accounttable 
+                                  JOIN customertable ON credittable.CustomerId = customertable.Id
+                                  WHERE credittable.IsPaidOff =False AND credittable.IsOverdue = TRUE""" , conn)
+                                  
+    OverdueCredits = pd.DataFrame(SQL_Query, columns = ['TotalCreditAmmount', 'RemainingAmountToBePaid','FirstName', 'LastName'])
+    
+    OverdueCredits = OverdueCredits.values.tolist()
+    
+    return OverdueCredits
     
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8007)
