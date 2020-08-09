@@ -262,8 +262,16 @@ def payoff_credit(data: datamodels.payoff_credit):
     SQL_Query = pd.read_sql_query(""" SELECT RemainingAmountToBePaid FROM credittable WHERE Id = '%s' """ % (CreditId), conn)
     RemainingAmountToBePaid = pd.DataFrame(SQL_Query, columns = ['RemainingAmountToBePaid'])
     
+    SQL_Query = pd.read_sql_query(""" SELECT Rating FROM credittable WHERE Id = '%s' """ % (CreditId), conn)
+    Rating = pd.DataFrame(SQL_Query, columns = ['Rating'])
+    Rating = float(Rating['Rating'][0])
+    
     SQL_Query = pd.read_sql_query(""" SELECT CurrentBalance FROM accounttable WHERE Id = '' """ % (BankId), conn)
     BankBalance = pd.DataFrame(SQL_Query, columns = ['CurrentBalance'])
+    
+    SQL_Query = pd.read_sql_query(""" SELECT CustomerId FROM credittable WHERE Id = '%s' """ % (CreditId), conn)
+    CreditCustomerId = pd.DataFrame(SQL_Query, columns = ['CustomerId'])
+    CreditCustomerId = float(CreditCustomerId['CreditCustomerId'][0])
     
     
     
@@ -282,9 +290,13 @@ def payoff_credit(data: datamodels.payoff_credit):
                 
                 NewRemainingAmountToBePaid = 0
                 message = 'Congratulations, You have completely paid off your credit'
+                
+                if Rating != 1:
+                    Rating = Rating - 1
             
             cursor.execute (""" UPDATE accounttable SET CurrentBalance = %s WHERE Id = %s""", (NewSendingAccBalance, SendingAccountId))
             
+            cursor.execute (""" UPDATE credittable SET Rating = %s WHERE Id = %s""", (Rating, CreditCustomerId))
             
             cursor.execute (""" UPDATE credittable SET RemainingAmountToBePaid = %s, IsPaidOff = TRUE  WHERE Id = %s""", (NewRemainingAmountToBePaid, CreditId))
             
@@ -328,5 +340,18 @@ def get_exceeded_credits():
     
     return OverdueCredits
     
+@app.get('/GetAllCustomersGroupedByRating/')
+def get_all_customers_grouped_by_rating():    
+    conn = database.connectdb()
+    
+    SQL_Query = pd.read_sql_query(""" SELECT Id, FirstName, LastName, Rating
+                                  FROM customertable 
+                                  GROUP BY Rating""" , conn)
+    CustomersGroupedByRating = pd.DataFrame(SQL_Query, columns = ['Id', 'FirstName','LastName', 'Rating'])
+    
+    CustomersGroupedByRating = CustomersGroupedByRating.values.tolist()
+    
+    return CustomersGroupedByRating
+
 if __name__ == '__main__':
     uvicorn.run(app, host="127.0.0.1", port=8007)
