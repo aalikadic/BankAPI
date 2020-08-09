@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import numpy as np
-
 import uvicorn
 from fastapi import FastAPI
 
@@ -15,18 +13,6 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-
-# conn = database.connectdb()
-# SQL_Query = pd.read_sql_query(
-# '''select
-# Id,
-# FirstName,
-# LastName
-# from CustomerTable''', conn)
-
-# df = pd.DataFrame(SQL_Query, columns=['Id','FirstName','LastName'])
-
-
 app = FastAPI(title= 'goCloud Test Project', version = '1.0', description = "Enjoy this fully functional bank system API!!!")
 
 @app.get('/')
@@ -34,6 +20,8 @@ def read_home():
     return {'message': 'Test Project API live!'}
 
 @app.post('/CreateCustomer/')
+# Endpoint takes in an object of the type new customer
+# Following that, each part is added to its column
 def create_user(data: datamodels.new_customer):
     data = data.dict()
     FirstName = data['FirstName']
@@ -56,7 +44,7 @@ def create_user(data: datamodels.new_customer):
 
 @app.post('/GetCustomersByLastname/')
 def get_customers_by_last_name(data: datamodels.lastname_sort):
-    
+    ## The incoming data model is transformed into a dictionary
     data = data.dict()
     
     LastName = data['LastName'][0]
@@ -67,7 +55,7 @@ def get_customers_by_last_name(data: datamodels.lastname_sort):
     
     cursor.execute(""" SELECT FirstName, LastName, StreetName, HouseNumber, PostCode, City, Country FROM customertable 
                  WHERE LastName = '%s' """,(LastName))
-    
+    ## The found data is saved into a list and sorted according to the value of Sort
     customers = cursor.fetchall()
     customers = list(customers)
     
@@ -80,6 +68,8 @@ def get_customers_by_last_name(data: datamodels.lastname_sort):
   
 @app.post('/CreateNewAccount/')
 def create_new_account(data: datamodels.new_account):
+    
+    #In order to create a new account, send CustomerId. A new account will be allocated.
     
     data = data.dict()
     
@@ -97,7 +87,9 @@ def create_new_account(data: datamodels.new_account):
 @app.post('/CreateNewCredit/')
 def create_new_credit(data: datamodels.new_credit):
     
+    ##Information about credit recipient is received and trasformed into a dictionary
     data = data.dict()
+    
     
     AccountId = data['AccountId']
     CustomerId = data['CustomerId']
@@ -114,7 +106,10 @@ def create_new_credit(data: datamodels.new_credit):
     SQL_Query = pd.read_sql_query(""" SELECT CurrentBalance FROM accounttable WHERE Id = '%s' """ % (AccountId), conn)
     df = pd.DataFrame(SQL_Query, columns = ['CurrentBalance'])
     
+    ## Check if bank has sufficient funds, if yes, the credit will be issued
+    
     if float(BankBalance['CurrentBalance'][0]) >= float(TotalCreditAmount):
+        ## Credit amount added to credit recipient and subtracted from bank account
         NewAccountBalance = float(df['CurrentBalance'][0]) + float(TotalCreditAmount)
         NewBankBalance = float(BankBalance['CurrentBalance'][0]) - float(TotalCreditAmount)
         
@@ -132,6 +127,8 @@ def create_new_credit(data: datamodels.new_credit):
 
 @app.post('/Transfer/')
 def transfer_money(data: datamodels.transfer_money):
+    
+    ##Information about transfer sender and recipient is received and trasformed into a dictionary
     
     data = data.dict()
     
@@ -151,8 +148,14 @@ def transfer_money(data: datamodels.transfer_money):
     SendingAccBalance = float(SendingAccBalance['CurrentBalance'][0])
     ReceivingAccBalance = float(ReceivingAccBalance['CurrentBalance'][0])
     
+    ## Check if the sending and receiving accounts are the same, if not continue
+
     if SendingAccountId != ReceivingAccountId:
+        
+        ## Check if the sender has enough money
         if  SendingAccBalance > Amount:
+            
+            ## Subtract the amount from sender and add to recipient
             NewSendingAccBalance = SendingAccBalance - Amount
             NewReceivingAccBalance = ReceivingAccBalance + Amount
             
@@ -277,14 +280,26 @@ def payoff_credit(data: datamodels.payoff_credit):
     
     message = 'You have successfully paid a part of your credit'
     
+    ## Check if sender has enough money
+    
     if  float(SendingAccBalance['CurrentBalance'][0]) > Amount:
+        
+        ## Check if the credit has been paid or not
         
         if float(RemainingAmountToBePaid['RemainingAmountToBePaid'][0]) > 0:
         
+            ## Subtract the amount from account balance and recalculate remaining part to be paid
             NewSendingAccBalance = float(SendingAccBalance['CurrentBalance'][0]) - Amount
             NewRemainingAmountToBePaid = float(RemainingAmountToBePaid['RemainingAmountToBePaid'][0]) - Amount
             
+            
+            ## Add the money to the bank account
+            
             NewBankBalance = float(BankBalance['CurrentBalance'][0]) + Amount
+            
+            ## Check if the remaining amount is zero or below zero. If yes, it means that the has been paid,
+            ## the credit gets marked as paid and the customer receives an increased rating. If the customer
+            ## paid more money than he was supposed to, the money gets reimbursed.
             
             if NewRemainingAmountToBePaid <= 0:
                 
