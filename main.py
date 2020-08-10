@@ -23,7 +23,9 @@ def read_home():
 # Endpoint takes in an object of the type new customer
 # Following that, each part is added to its column
 def create_user(data: datamodels.new_customer):
+    
     data = data.dict()
+    
     FirstName = data['FirstName']
     LastName = data['LastName']
     DateOfBirth = data['DateOfBirth']
